@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  
+  reverse_proxy:
+    image: "nginx:latest"
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./conf/nginx/conf.d:/etc/nginx/conf.d
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - auth-net
+    depends_on:
+      - auth
+
+  auth:
+      image: quay.io/keycloak/keycloak:latest
+      restart: unless-stopped
+      environment:
+        DB_VENDOR: POSTGRES
+        DB_ADDR: auth_db
+        DB_DATABASE: keycloak
+        DB_USER: keycloak
+        DB_SCHEMA: public
+        DB_PASSWORD: password
+        KEYCLOAK_USER: ${INITIAL_KEYCLOAK_USER}
+        KEYCLOAK_PASSWORD: ${INITIAL_KEYCLOAK_PASSWORD}
+      expose:
+        - 8080
+      depends_on:
+        - auth_db
+      networks:
+        - auth-net
+
+  auth_db:
+      image: postgres
+      restart: unless-stopped
+      volumes:
+        - auth_db_data:/var/lib/postgresql/data
+      environment:
+        POSTGRES_DB: keycloak
+        POSTGRES_USER: keycloak
+        POSTGRES_PASSWORD: password
+      networks:
+        - auth-net
+
+volumes:
+  auth_db_data:
+  static_volume:
+  media_volume:
+  keycloak_postgres_data:
+    driver: local
+
+networks:
+  auth-net:
